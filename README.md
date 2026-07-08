@@ -1,0 +1,2 @@
+# CommentManagerPlugin
+TwitchChannelManagementTool用のCommentManagerPlugin

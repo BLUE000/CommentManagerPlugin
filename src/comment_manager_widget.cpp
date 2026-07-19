@@ -458,7 +458,7 @@ void CommentManagerWidget::addComment(const TwitchComment& comment) {
     QStandardItem* userItem = new QStandardItem(userHtml);
 
     // 3. Message
-    QString msgHtml = QString("<font color=\"#FFFFFF\">%1</font>").arg(comment.comment.toHtmlEscaped());
+    QString msgHtml = comment.comment.toHtmlEscaped();
     QStandardItem* msgItem = new QStandardItem(msgHtml);
 
     m_commentModel->appendRow({ timeItem, userItem, msgItem });

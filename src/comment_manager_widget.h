@@ -15,6 +15,10 @@
 #include <QtCharts/QChartView>
 #include <QtCharts/QChart>
 #include <QtCharts/QLineSeries>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QImage>
+#include <QMap>
 #include "shared/plugin_interface.h"
 
 class DatabaseManager;
@@ -104,4 +108,7 @@ private:
     void loadSettingsToUi();
     void populateViewerTree(const QMap<QString, QStringList>& categorizedUsers);
     QString getObsOverlayUrl(const QString& filename) const;
+
+    QNetworkAccessManager* m_networkManager = nullptr;
+    QMap<QUrl, QImage> m_imageCache;
 };

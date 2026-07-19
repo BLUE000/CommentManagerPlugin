@@ -24,14 +24,18 @@
 #include <QFile>
 #include <QDir>
 #include <QCoreApplication>
+#include <QRegularExpression>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <wincrypt.h>
 #endif
 
 class HtmlDelegate : public QStyledItemDelegate {
+private:
+    const QMap<QUrl, QImage>& m_imageCache;
 public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+    HtmlDelegate(const QMap<QUrl, QImage>& imageCache, QObject* parent = nullptr)
+        : QStyledItemDelegate(parent), m_imageCache(imageCache) {}
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override {
         QStyleOptionViewItem opt = option;
@@ -40,6 +44,12 @@ public:
         painter->save();
 
         QTextDocument doc;
+        // キャッシュされた画像をQTextDocumentの内部リソースにロード
+        for (auto it = m_imageCache.begin(); it != m_imageCache.end(); ++it) {
+            if (!it.value().isNull()) {
+                doc.addResource(QTextDocument::ImageResource, it.key(), it.value());
+            }
+        }
         doc.setHtml(opt.text);
 
         // 背景の描画
@@ -63,6 +73,11 @@ public:
         initStyleOption(&opt, index);
 
         QTextDocument doc;
+        for (auto it = m_imageCache.begin(); it != m_imageCache.end(); ++it) {
+            if (!it.value().isNull()) {
+                doc.addResource(QTextDocument::ImageResource, it.key(), it.value());
+            }
+        }
         doc.setHtml(opt.text);
         doc.setTextWidth(opt.rect.width());
         return QSize(doc.idealWidth(), doc.size().height());
@@ -71,6 +86,7 @@ public:
 
 CommentManagerWidget::CommentManagerWidget(QWidget* parent, DatabaseManager* db, ConfigManager* cfg, ICoreContext* ctx, int currentSessionId)
     : QWidget(parent), m_db(db), m_cfg(cfg), m_ctx(ctx), m_currentSessionId(currentSessionId) {
+    m_networkManager = new QNetworkAccessManager(this);
     setupUi();
     loadSettingsToUi();
 }
@@ -114,7 +130,7 @@ void CommentManagerWidget::setupLeftPane() {
     m_commentModel = new QStandardItemModel(this);
     m_commentModel->setHorizontalHeaderLabels({ "Time", "Username", "Message" });
     m_commentTreeView->setModel(m_commentModel);
-    m_commentTreeView->setItemDelegate(new HtmlDelegate(m_commentTreeView));
+    m_commentTreeView->setItemDelegate(new HtmlDelegate(m_imageCache, m_commentTreeView));
     m_commentTreeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_commentTreeView->setSelectionMode(QAbstractItemView::NoSelection);
     m_commentTreeView->setWordWrap(true);
@@ -457,12 +473,38 @@ void CommentManagerWidget::addComment(const TwitchComment& comment) {
         .arg(comment.displayName.isEmpty() ? comment.username : comment.displayName);
     QStandardItem* userItem = new QStandardItem(userHtml);
 
-    // 3. Message
-    QString msgHtml = comment.comment.toHtmlEscaped();
+    // 3. Message (ホスト側で安全にHTML化・エモート置換されて渡されるためそのまま受け取る)
+    QString msgHtml = comment.comment;
     QStandardItem* msgItem = new QStandardItem(msgHtml);
 
     m_commentModel->appendRow({ timeItem, userItem, msgItem });
     m_commentTreeView->scrollToBottom();
+
+    // <img> タグ内の画像の非同期ダウンロードのトリガー
+    static QRegularExpression imgRegex("<img[^>]*src=\"([^\"]+)\"");
+    QRegularExpressionMatchIterator it = imgRegex.globalMatch(comment.comment);
+    while (it.hasNext()) {
+        QRegularExpressionMatch match = it.next();
+        QUrl url(match.captured(1));
+        if (url.isValid() && !m_imageCache.contains(url)) {
+            // 重複ダウンロード防止のため仮のエントリーを追加
+            m_imageCache.insert(url, QImage());
+            
+            QNetworkReply* reply = m_networkManager->get(QNetworkRequest(url));
+            connect(reply, &QNetworkReply::finished, this, [this, reply, url]() {
+                if (reply->error() == QNetworkReply::NoError) {
+                    QByteArray data = reply->readAll();
+                    QImage image = QImage::fromData(data);
+                    if (!image.isNull()) {
+                        m_imageCache[url] = image;
+                        // Viewport の再描画を要求して画像を反映
+                        m_commentTreeView->viewport()->update();
+                    }
+                }
+                reply->deleteLater();
+            });
+        }
+    }
 }
 
 void CommentManagerWidget::updateActiveViewers() {

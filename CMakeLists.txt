@@ -9,7 +9,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 # Qt6 パッケージの検索
-find_package(Qt6 COMPONENTS Core Widgets Sql Charts REQUIRED)
+find_package(Qt6 COMPONENTS Core Widgets Sql Charts Network REQUIRED)
 
 # ホストアプリのsharedヘッダーをインクルードパスに含める
 set(HOST_SHARED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tests/TwitchChannnelManagementTool/src")
@@ -47,6 +47,7 @@ target_link_libraries(CommentManagerPlugin PRIVATE
     Qt6::Widgets
     Qt6::Sql
     Qt6::Charts
+    Qt6::Network
 )
 if (WIN32)
     target_link_libraries(CommentManagerPlugin PRIVATE Crypt32)

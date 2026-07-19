@@ -6,7 +6,7 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-find_package(Qt6 COMPONENTS Core Widgets Sql Charts Test REQUIRED)
+find_package(Qt6 COMPONENTS Core Widgets Sql Charts Test Network REQUIRED)
 
 # テスト実行バイナリの定義
 add_executable(CommentManagerPluginTest
@@ -28,6 +28,7 @@ target_link_libraries(CommentManagerPluginTest PRIVATE
     Qt6::Sql
     Qt6::Charts
     Qt6::Test
+    Qt6::Network
     gtest
 )
 if (WIN32)

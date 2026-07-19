@@ -320,7 +320,7 @@ bool DatabaseManager::exportSessionToCsv(int sessionId, const QString& filePath)
 
 int DatabaseManager::getTotalCommentCount(int sessionId) const {
     QSqlQuery query(m_db);
-    query.prepare("SELECT COUNT(*) FROM comments WHERE session_id = :session_id;");
+    query.prepare("SELECT COUNT(*) FROM comments WHERE (:session_id <= 0 OR session_id = :session_id);");
     query.bindValue(":session_id", sessionId);
     if (query.exec() && query.next()) {
         return query.value(0).toInt();
@@ -335,7 +335,7 @@ QList<QPair<QString, int>> DatabaseManager::getCommentRanking(int sessionId, int
         "SELECT u.display_name, COUNT(c.comment_id) as cnt "
         "FROM comments c "
         "JOIN users u ON c.user_id = u.user_id "
-        "WHERE c.session_id = :session_id "
+        "WHERE (:session_id <= 0 OR c.session_id = :session_id) "
         "GROUP BY c.user_id "
         "ORDER BY cnt DESC "
         "LIMIT :limit;"
@@ -355,12 +355,10 @@ QList<QPair<QDateTime, int>> DatabaseManager::getCommentTrendTotal(int sessionId
     QList<QPair<QDateTime, int>> trend;
     QSqlQuery query(m_db);
     
-    // SQLite で intervalSeconds ごとに集計するため秒の丸めを行う
-    // YYYY-MM-DD HH:MM:ss から秒を interval 単位に切り落とす
     query.prepare(
         "SELECT received_at "
         "FROM comments "
-        "WHERE session_id = :session_id "
+        "WHERE (:session_id <= 0 OR session_id = :session_id) "
         "ORDER BY received_at ASC;"
     );
     query.bindValue(":session_id", sessionId);
@@ -392,13 +390,12 @@ QList<QPair<QDateTime, int>> DatabaseManager::getCommentTrendTotal(int sessionId
 QList<QPair<QString, QList<QPair<QDateTime, int>>>> DatabaseManager::getCommentTrendByUser(int sessionId, int limitUsers, int intervalSeconds) const {
     QList<QPair<QString, QList<QPair<QDateTime, int>>>> result;
 
-    // 1. まず上位のユーザーリスト（IDと表示名）を取得する
     QSqlQuery topQuery(m_db);
     topQuery.prepare(
         "SELECT c.user_id, u.display_name "
         "FROM comments c "
         "JOIN users u ON c.user_id = u.user_id "
-        "WHERE c.session_id = :session_id "
+        "WHERE (:session_id <= 0 OR c.session_id = :session_id) "
         "GROUP BY c.user_id "
         "ORDER BY COUNT(c.comment_id) DESC "
         "LIMIT :limit;"
@@ -417,13 +414,12 @@ QList<QPair<QString, QList<QPair<QDateTime, int>>>> DatabaseManager::getCommentT
         topUsers.append({topQuery.value(0).toString(), topQuery.value(1).toString()});
     }
 
-    // 2. 各ユーザーごとの時系列累積トレンドを取得する
     for (const auto& tu : topUsers) {
         QSqlQuery cQuery(m_db);
         cQuery.prepare(
             "SELECT received_at "
             "FROM comments "
-            "WHERE session_id = :session_id AND user_id = :user_id "
+            "WHERE (:session_id <= 0 OR session_id = :session_id) AND user_id = :user_id "
             "ORDER BY received_at ASC;"
         );
         cQuery.bindValue(":session_id", sessionId);
@@ -461,7 +457,7 @@ QMap<QString, QStringList> DatabaseManager::getCategorizedActiveUsers(int sessio
         "SELECT DISTINCT u.username, u.category "
         "FROM comments c "
         "JOIN users u ON c.user_id = u.user_id "
-        "WHERE c.session_id = :session_id "
+        "WHERE (:session_id <= 0 OR c.session_id = :session_id) "
         "ORDER BY u.username ASC;"
     );
     query.bindValue(":session_id", sessionId);

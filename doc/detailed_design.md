@@ -180,7 +180,7 @@ class ConfigManager;
 class CommentManagerWidget : public QWidget {
     Q_OBJECT
 public:
-    CommentManagerWidget(QWidget* parent, DatabaseManager* db, ConfigManager* cfg, ICoreContext* ctx);
+    CommentManagerWidget(QWidget* parent, DatabaseManager* db, ConfigManager* cfg, ICoreContext* ctx, int currentSessionId = -1);
     virtual ~CommentManagerWidget() override;
 
     void addComment(const TwitchComment& comment);
@@ -202,12 +202,13 @@ private:
     DatabaseManager* m_db = nullptr;
     ConfigManager* m_cfg = nullptr;
     ICoreContext* m_ctx = nullptr;
+    int m_currentSessionId = -1;
 
     // UIポインタ
     QSplitter* m_splitter = nullptr;
     
     // 左ペイン
-    QListView* m_commentListView = nullptr;
+    QTreeView* m_commentTreeView = nullptr;
     QStandardItemModel* m_commentModel = nullptr;
 
     // 右ペイン

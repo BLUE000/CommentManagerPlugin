@@ -187,7 +187,7 @@ QMap<QString, QByteArray> CommentManagerPlugin::defaultAssets() const {
 
 QWidget* CommentManagerPlugin::createWidget(QWidget* parent) {
     if (!m_mainWidget) {
-        m_mainWidget = new CommentManagerWidget(parent, m_dbManager, m_configManager, m_context);
+        m_mainWidget = new CommentManagerWidget(parent, m_dbManager, m_configManager, m_context, m_currentSessionId);
     }
     return m_mainWidget;
 }

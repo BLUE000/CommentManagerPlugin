@@ -15,8 +15,62 @@
 #include <QDoubleSpinBox>
 #include <QHeaderView>
 
-CommentManagerWidget::CommentManagerWidget(QWidget* parent, DatabaseManager* db, ConfigManager* cfg, ICoreContext* ctx)
-    : QWidget(parent), m_db(db), m_cfg(cfg), m_ctx(ctx) {
+#include <QStyledItemDelegate>
+#include <QTextDocument>
+#include <QPainter>
+#include <QAbstractTextDocumentLayout>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QFile>
+#include <QDir>
+#include <QCoreApplication>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <wincrypt.h>
+#endif
+
+class HtmlDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override {
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+
+        painter->save();
+
+        QTextDocument doc;
+        doc.setHtml(opt.text);
+
+        // 背景の描画
+        opt.text = "";
+        if (opt.widget) {
+            opt.widget->style()->drawControl(QStyle::CE_ItemViewItem, &opt, painter);
+        } else {
+            QApplication::style()->drawControl(QStyle::CE_ItemViewItem, &opt, painter);
+        }
+
+        // テキストの描画
+        painter->translate(opt.rect.left(), opt.rect.top());
+        QRect clip(0, 0, opt.rect.width(), opt.rect.height());
+        doc.drawContents(painter, clip);
+
+        painter->restore();
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override {
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+
+        QTextDocument doc;
+        doc.setHtml(opt.text);
+        doc.setTextWidth(opt.rect.width());
+        return QSize(doc.idealWidth(), doc.size().height());
+    }
+};
+
+CommentManagerWidget::CommentManagerWidget(QWidget* parent, DatabaseManager* db, ConfigManager* cfg, ICoreContext* ctx, int currentSessionId)
+    : QWidget(parent), m_db(db), m_cfg(cfg), m_ctx(ctx), m_currentSessionId(currentSessionId) {
     setupUi();
     loadSettingsToUi();
 }
@@ -56,13 +110,22 @@ void CommentManagerWidget::setupLeftPane() {
     label->setFont(font);
     layout->addWidget(label);
 
-    m_commentListView = new QListView(leftWidget);
+    m_commentTreeView = new QTreeView(leftWidget);
     m_commentModel = new QStandardItemModel(this);
-    m_commentListView->setModel(m_commentModel);
-    m_commentListView->setWordWrap(true);
-    m_commentListView->setSelectionMode(QAbstractItemView::NoSelection);
-    layout->addWidget(m_commentListView);
+    m_commentModel->setHorizontalHeaderLabels({ "Time", "Username", "Message" });
+    m_commentTreeView->setModel(m_commentModel);
+    m_commentTreeView->setItemDelegate(new HtmlDelegate(m_commentTreeView));
+    m_commentTreeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_commentTreeView->setSelectionMode(QAbstractItemView::NoSelection);
+    m_commentTreeView->setWordWrap(true);
 
+    QHeaderView* header = m_commentTreeView->header();
+    header->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(1, QHeaderView::Interactive);
+    header->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_commentTreeView->setColumnWidth(1, 150);
+
+    layout->addWidget(m_commentTreeView);
     m_splitter->addWidget(leftWidget);
 }
 
@@ -149,7 +212,7 @@ void CommentManagerWidget::setupRightPane() {
     QHBoxLayout* filterLayout = new QHBoxLayout();
     filterLayout->addWidget(new QLabel("対象:", m_analysisTab));
     m_comboTargetSession = new QComboBox(m_analysisTab);
-    m_comboTargetSession->addItem("当セッション", 1);
+    m_comboTargetSession->addItem("当セッション", m_currentSessionId);
     m_comboTargetSession->addItem("全セッション", 0);
     filterLayout->addWidget(m_comboTargetSession);
 
@@ -366,27 +429,45 @@ void CommentManagerWidget::addComment(const TwitchComment& comment) {
         return; // 表示除外
     }
 
-    QString badgesStr = "";
-    if (!comment.badges.isEmpty()) {
-        QStringList bl;
-        for (int i = 0; i < comment.badges.size(); ++i) {
-            bl.append(comment.badges.at(i).toString());
-        }
-        badgesStr = QString("[%1] ").arg(bl.join(","));
-    }
+    // 1. Time
+    QString timeStr = QDateTime::fromMSecsSinceEpoch(comment.timestamp).toString("HH:mm:ss");
+    QString timeHtml = QString("<font color=\"#888888\">%1</font>").arg(timeStr);
+    QStandardItem* timeItem = new QStandardItem(timeHtml);
 
-    QString text = QString("%1%2: %3").arg(badgesStr, comment.displayName.isEmpty() ? comment.username : comment.displayName, comment.comment);
-    QStandardItem* item = new QStandardItem(text);
-    m_commentModel->appendRow(item);
-    m_commentListView->scrollToBottom();
+    // 2. Username & Badges mapping to Emoji
+    QStringList badgeEmojis;
+    if (!comment.badges.isEmpty()) {
+        for (int i = 0; i < comment.badges.size(); ++i) {
+            QJsonObject bObj = comment.badges.at(i).toObject();
+            QString name = bObj.value("name").toString();
+            if (!name.isEmpty()) {
+                QString type = name.split('/').first().toLower();
+                if (type == "broadcaster") badgeEmojis.append("👑");
+                else if (type == "moderator") badgeEmojis.append("🛡️");
+                else if (type == "vip") badgeEmojis.append("💎");
+                else if (type == "subscriber") badgeEmojis.append("⭐");
+            }
+        }
+    }
+    QString badgePrefix = badgeEmojis.isEmpty() ? "" : (badgeEmojis.join(" ") + " ");
+    QString userColor = "#A970FF";
+    QString userHtml = QString("%1<b><font color=\"%2\">%3</font></b>")
+        .arg(badgePrefix)
+        .arg(userColor)
+        .arg(comment.displayName.isEmpty() ? comment.username : comment.displayName);
+    QStandardItem* userItem = new QStandardItem(userHtml);
+
+    // 3. Message
+    QString msgHtml = QString("<font color=\"#FFFFFF\">%1</font>").arg(comment.comment.toHtmlEscaped());
+    QStandardItem* msgItem = new QStandardItem(msgHtml);
+
+    m_commentModel->appendRow({ timeItem, userItem, msgItem });
+    m_commentTreeView->scrollToBottom();
 }
 
 void CommentManagerWidget::updateActiveViewers() {
-    int targetSessionId = -1;
-    if (m_ctx) {
-        // 現在のプラグインの動的セッションIDを取得するためにDBからカテゴリを抽出
-        // ここでは親 widget / plugin から渡される session_id もしくはDB経由
-        // セッションコンボボックスから取得
+    int targetSessionId = m_currentSessionId;
+    if (m_ctx && m_comboTargetSession) {
         targetSessionId = m_comboTargetSession->currentData().toInt();
     }
     
@@ -595,8 +676,34 @@ void CommentManagerWidget::onSaveSettings() {
 }
 
 QString CommentManagerWidget::getObsOverlayUrl(const QString& filename) const {
-    // デフォルトポート 8081 を使用してオーバーレイ表示用URLを組み立てる
-    return QString("http://localhost:8081/assets/overlay/CommentManagerPlugin/default/%1").arg(filename);
+    int port = 8081; // デフォルトフォールバック
+    
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString settingsPath = QDir(appDir).filePath("settings.bin");
+    QFile file(settingsPath);
+    if (file.open(QIODevice::ReadOnly)) {
+        QByteArray encryptedData = file.readAll();
+        file.close();
+        
+        QByteArray rawJson = encryptedData;
+#ifdef Q_OS_WIN
+        DATA_BLOB input;
+        input.pbData = reinterpret_cast<BYTE*>(const_cast<char*>(encryptedData.constData()));
+        input.cbData = encryptedData.size();
+        DATA_BLOB output;
+        if (CryptUnprotectData(&input, NULL, NULL, NULL, NULL, 0, &output)) {
+            rawJson = QByteArray(reinterpret_cast<char*>(output.pbData), output.cbData);
+            LocalFree(output.pbData);
+        }
+#endif
+        QJsonDocument doc = QJsonDocument::fromJson(rawJson);
+        if (!doc.isNull() && doc.isObject()) {
+            QJsonObject obj = doc.object();
+            port = obj.value("obs_port").toInt(8081);
+        }
+    }
+    
+    return QString("http://localhost:%1/assets/overlay/CommentManagerPlugin/default/%2").arg(port).arg(filename);
 }
 
 void CommentManagerWidget::onCopyCommentUrl() {

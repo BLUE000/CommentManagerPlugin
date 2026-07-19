@@ -48,6 +48,9 @@ target_link_libraries(CommentManagerPlugin PRIVATE
     Qt6::Sql
     Qt6::Charts
 )
+if (WIN32)
+    target_link_libraries(CommentManagerPlugin PRIVATE Crypt32)
+endif()
 
 # 単体テスト用オプション
 option(BUILD_TESTING "Build the test suite" OFF)

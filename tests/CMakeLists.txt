@@ -30,5 +30,8 @@ target_link_libraries(CommentManagerPluginTest PRIVATE
     Qt6::Test
     gtest
 )
+if (WIN32)
+    target_link_libraries(CommentManagerPluginTest PRIVATE Crypt32)
+endif()
 
 add_test(NAME CommentManagerPluginTest COMMAND CommentManagerPluginTest)

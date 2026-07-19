@@ -153,12 +153,22 @@ bool DatabaseManager::saveComment(const TwitchComment& comment, int sessionId) {
     QString category = "regular";
     QStringList badgeNames;
     for (int i = 0; i < comment.badges.size(); ++i) {
-        QString b = comment.badges.at(i).toString();
-        badgeNames.append(b);
-        if (b == "broadcaster") category = "streamer";
-        else if (b == "moderator" && category == "regular") category = "moderator";
-        else if (b == "vip" && (category == "regular" || category == "moderator")) category = "vip";
-        else if (b == "artist" && (category == "regular" || category == "moderator" || category == "vip")) category = "artist";
+        QString name;
+        QJsonValue val = comment.badges.at(i);
+        if (val.isObject()) {
+            name = val.toObject().value("name").toString();
+        } else if (val.isString()) {
+            name = val.toString();
+        }
+
+        if (!name.isEmpty()) {
+            badgeNames.append(name);
+            QString type = name.split('/').first().toLower();
+            if (type == "broadcaster") category = "streamer";
+            else if (type == "moderator" && category == "regular") category = "moderator";
+            else if (type == "vip" && (category == "regular" || category == "moderator")) category = "vip";
+            else if (type == "artist" && (category == "regular" || category == "moderator" || category == "vip")) category = "artist";
+        }
     }
 
     QSqlQuery userQuery(m_db);

@@ -37,7 +37,7 @@ add_library(CommentManagerPlugin SHARED
 )
 
 set_target_properties(CommentManagerPlugin PROPERTIES
-    PREFIX ""
+    PREFIX "lib"
     OUTPUT_NAME "CommentManagerPlugin"
 )
 

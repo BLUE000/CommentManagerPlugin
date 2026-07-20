@@ -447,11 +447,11 @@ ORDER BY time_slot ASC;
 ### 5.2. `CMakeLists.txt` 出力プロパティ詳細
 ```cmake
 set_target_properties(CommentManagerPlugin PROPERTIES
-    PREFIX ""
+    PREFIX "lib"
     OUTPUT_NAME "CommentManagerPlugin"
 )
 ```
-- この設定により、MinGW (GCC) ビルド環境においても `libCommentManagerPlugin.dll` ではなく `CommentManagerPlugin.dll` が直接出力され、二重DLLロード問題を抑止します。
+- この設定により、全てのビルド環境において `libCommentManagerPlugin.dll` として一貫して出力され、プロジェクト共通の命名規約（`lib*.dll`）へ適合させます。
 
 ### 5.3. `initialize()` 例外保護詳細
 ```cpp

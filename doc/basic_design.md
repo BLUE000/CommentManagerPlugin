@@ -396,8 +396,8 @@ sequenceDiagram
 - Qtリソースシステム (`resources.qrc` -> `:/pic/Comment.png`) または静的メモリキャッシュを用いて返却し、メインUIスレッドにおける描画遅延およびフリーズを完全に防止します。
 
 ### 6.2. DLL 出力名およびプレフィックスの統一
-- CMake のターゲット属性において `set_target_properties(CommentManagerPlugin PROPERTIES PREFIX "" OUTPUT_NAME "CommentManagerPlugin")` を指定します。
-- MinGW/GCC 環境で生成される `libCommentManagerPlugin.dll` の `lib` プレフィックスを消去し、常に `CommentManagerPlugin.dll` として統一することで、ホストアプリの `plugins/` ディレクトリにおける古いファイルとの二重ロード・競合・フリーズを防ぎます。
+- CMake のターゲット属性において `set_target_properties(CommentManagerPlugin PROPERTIES PREFIX "lib" OUTPUT_NAME "CommentManagerPlugin")` を指定します。
+- プレフィックスを `lib` に固定し `libCommentManagerPlugin.dll` として統一することで、他プラグインとの命名規則を合わせ、ホストアプリの `plugins/` ディレクトリにおける表記揺れや重複二重ロードによるフリーズを防ぎます。
 
 ### 6.3. 初期化時の例外保護およびフォールバック
 - `initialize(ICoreContext* context)` 実行時、データベース接続や設定読み込みの処理を `try-catch` ブロックで保護します。

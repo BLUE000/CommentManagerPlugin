@@ -33,6 +33,12 @@ set(PLUGIN_HEADERS
 add_library(CommentManagerPlugin SHARED
     ${PLUGIN_SOURCES}
     ${PLUGIN_HEADERS}
+    resources.qrc
+)
+
+set_target_properties(CommentManagerPlugin PROPERTIES
+    PREFIX ""
+    OUTPUT_NAME "CommentManagerPlugin"
 )
 
 target_compile_definitions(CommentManagerPlugin PRIVATE QT_DEPRECATED_WARNINGS)

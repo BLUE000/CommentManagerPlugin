@@ -384,4 +384,23 @@ sequenceDiagram
     end
     
     Plugin->>Host: writeLog("Info", "CommentManagerPlugin", "onCommentReceived", "Comment processed: ...")
+
+---
+
+## 6. フリーズ防止・ビルド適合設計
+
+ホストアプリ (`TwitchChannelManagementTool`) の「プラグイン実装時の注意点・フリーズ防止ガイドライン」に適合するため、以下の設計を採用します。
+
+### 6.1. アイコン画像等の非ブロッキング・静的メモリ/リソース化
+- `iconPngData()` において `QFile` による同期ディスク I/O 読み込みを全廃します。
+- Qtリソースシステム (`resources.qrc` -> `:/pic/Comment.png`) または静的メモリキャッシュを用いて返却し、メインUIスレッドにおける描画遅延およびフリーズを完全に防止します。
+
+### 6.2. DLL 出力名およびプレフィックスの統一
+- CMake のターゲット属性において `set_target_properties(CommentManagerPlugin PROPERTIES PREFIX "" OUTPUT_NAME "CommentManagerPlugin")` を指定します。
+- MinGW/GCC 環境で生成される `libCommentManagerPlugin.dll` の `lib` プレフィックスを消去し、常に `CommentManagerPlugin.dll` として統一することで、ホストアプリの `plugins/` ディレクトリにおける古いファイルとの二重ロード・競合・フリーズを防ぎます。
+
+### 6.3. 初期化時の例外保護およびフォールバック
+- `initialize(ICoreContext* context)` 実行時、データベース接続や設定読み込みの処理を `try-catch` ブロックで保護します。
+- 初期化中に異常が発生した場合でもホストアプリのイベントループを停止させず、エラーログを出力して安全に制御を返却します。
+
 ```

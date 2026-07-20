@@ -3,6 +3,9 @@ scripts/
 .ai_rules.md
 WIP_STATE.md
 build/
+build_debug/
+build_release/
+.vscode/
 TwitchChannnelManagementTool/
 dist/
 tmp/

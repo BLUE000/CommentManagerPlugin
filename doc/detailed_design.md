@@ -418,3 +418,61 @@ ORDER BY time_slot ASC;
   ]
 }
 ```
+
+---
+
+## 5. フリーズ防止・ビルド構成詳細設計
+
+### 5.1. Qt リソースによるアイコン・静的アセット埋め込み
+- **`resources.qrc` 仕様**:
+  ```xml
+  <RCC>
+      <qresource prefix="/">
+          <file>pic/Comment.png</file>
+      </qresource>
+  </RCC>
+  ```
+- `iconPngData()` 実装詳細:
+  ```cpp
+  QByteArray CommentManagerPlugin::iconPngData() const {
+      QFile file(":/pic/Comment.png");
+      if (file.open(QIODevice::ReadOnly)) {
+          return file.readAll();
+      }
+      return QByteArray();
+  }
+  ```
+  ホストアプリ側の作業ディレクトリ位置に関わらず、メモリ上のQtリソースから高速にPNGバイナリを取得して返却します。
+
+### 5.2. `CMakeLists.txt` 出力プロパティ詳細
+```cmake
+set_target_properties(CommentManagerPlugin PROPERTIES
+    PREFIX ""
+    OUTPUT_NAME "CommentManagerPlugin"
+)
+```
+- この設定により、MinGW (GCC) ビルド環境においても `libCommentManagerPlugin.dll` ではなく `CommentManagerPlugin.dll` が直接出力され、二重DLLロード問題を抑止します。
+
+### 5.3. `initialize()` 例外保護詳細
+```cpp
+void CommentManagerPlugin::initialize(ICoreContext* context) {
+    m_context = context;
+    if (!m_context) return;
+
+    try {
+        m_context->writeLog("Info", "CommentManagerPlugin", "initialize", "CommentManagerPlugin starting...");
+        // データベースおよび設定の安全な初期化
+        ...
+    } catch (const std::exception& e) {
+        if (m_context) {
+            m_context->writeLog("Error", "CommentManagerPlugin", "initialize", 
+                QString("Exception during initialize: %1").arg(e.what()));
+        }
+    } catch (...) {
+        if (m_context) {
+            m_context->writeLog("Error", "CommentManagerPlugin", "initialize", "Unknown exception during initialize.");
+        }
+    }
+}
+```
+

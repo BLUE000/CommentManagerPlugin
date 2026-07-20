@@ -18,29 +18,40 @@ void CommentManagerPlugin::initialize(ICoreContext* context) {
     m_context = context;
     if (!m_context) return;
 
-    m_context->writeLog("Info", "CommentManagerPlugin", "initialize", "CommentManagerPlugin is starting...");
+    try {
+        m_context->writeLog("Info", "CommentManagerPlugin", "initialize", "CommentManagerPlugin is starting...");
 
-    // ディレクトリパスの解決
-    QString baseDir = m_context->getPluginDirectory();
-    if (baseDir.isEmpty()) {
-        baseDir = ".";
+        // ディレクトリパスの解決
+        QString baseDir = m_context->getPluginDirectory();
+        if (baseDir.isEmpty()) {
+            baseDir = ".";
+        }
+
+        // データベース初期化
+        m_dbManager = new DatabaseManager();
+        QString dbPath = baseDir + "/data/users.db";
+        m_dbManager->initialize(dbPath);
+
+        // 設定初期化
+        m_configManager = new ConfigManager(m_context);
+        m_configManager->loadConfig();
+
+        // セッション開始
+        m_sessionStartTime = QDateTime::currentDateTime();
+        m_currentSessionId = m_dbManager->startNewSession();
+
+        m_context->writeLog("Info", "CommentManagerPlugin", "initialize", 
+            QString("CommentManagerPlugin started session ID: %1").arg(m_currentSessionId));
+    } catch (const std::exception& e) {
+        if (m_context) {
+            m_context->writeLog("Error", "CommentManagerPlugin", "initialize", 
+                QString("Exception during initialize: %1").arg(e.what()));
+        }
+    } catch (...) {
+        if (m_context) {
+            m_context->writeLog("Error", "CommentManagerPlugin", "initialize", "Unknown exception during initialize.");
+        }
     }
-
-    // データベース初期化
-    m_dbManager = new DatabaseManager();
-    QString dbPath = baseDir + "/data/users.db";
-    m_dbManager->initialize(dbPath);
-
-    // 設定初期化
-    m_configManager = new ConfigManager(m_context);
-    m_configManager->loadConfig();
-
-    // セッション開始
-    m_sessionStartTime = QDateTime::currentDateTime();
-    m_currentSessionId = m_dbManager->startNewSession();
-
-    m_context->writeLog("Info", "CommentManagerPlugin", "initialize", 
-        QString("CommentManagerPlugin started session ID: %1").arg(m_currentSessionId));
 }
 
 void CommentManagerPlugin::shutdown() {
@@ -97,15 +108,25 @@ QString CommentManagerPlugin::pluginDescription() const {
 }
 
 QByteArray CommentManagerPlugin::iconPngData() const {
-    QFile file("pic/Comment.png");
+    static QByteArray s_iconCache;
+    if (!s_iconCache.isEmpty()) {
+        return s_iconCache;
+    }
+
+    // Qtリソースからメモリ読み込み
+    QFile file(":/pic/Comment.png");
     if (file.open(QIODevice::ReadOnly)) {
-        return file.readAll();
+        s_iconCache = file.readAll();
+        return s_iconCache;
     }
-    // テスト環境等のためのパス検索
-    QFile file2("../pic/Comment.png");
-    if (file2.open(QIODevice::ReadOnly)) {
-        return file2.readAll();
+
+    // フォールバック（ファイル存在時のみ）
+    QFile fallbackFile("pic/Comment.png");
+    if (fallbackFile.open(QIODevice::ReadOnly)) {
+        s_iconCache = fallbackFile.readAll();
+        return s_iconCache;
     }
+
     return QByteArray();
 }
 

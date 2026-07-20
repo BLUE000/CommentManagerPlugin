@@ -89,9 +89,19 @@ CommentManagerWidget::CommentManagerWidget(QWidget* parent, DatabaseManager* db,
     m_networkManager = new QNetworkAccessManager(this);
     setupUi();
     loadSettingsToUi();
+    m_isInitialized = true;
 }
 
 CommentManagerWidget::~CommentManagerWidget() {
+}
+
+void CommentManagerWidget::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    if (!m_isInitialized) {
+        m_isInitialized = true;
+        updateActiveViewers();
+        refreshAnalysis();
+    }
 }
 
 void CommentManagerWidget::setupUi() {
@@ -141,9 +151,10 @@ void CommentManagerWidget::setupLeftPane() {
     m_commentTreeView->setWordWrap(true);
 
     QHeaderView* header = m_commentTreeView->header();
-    header->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(0, QHeaderView::Interactive);
     header->setSectionResizeMode(1, QHeaderView::Interactive);
     header->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_commentTreeView->setColumnWidth(0, 85);
     m_commentTreeView->setColumnWidth(1, 150);
 
     layout->addWidget(m_commentTreeView);
@@ -629,6 +640,7 @@ void CommentManagerWidget::onSendAnnouncement() {
 }
 
 void CommentManagerWidget::onGraphSettingsChanged() {
+    if (!m_isInitialized) return;
     refreshAnalysis();
 }
 

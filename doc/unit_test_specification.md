@@ -118,6 +118,7 @@ JSONデータシリアライズと、`ICoreContext` の暗号化ファイル I/O
 | **UT-CFG-01** | `loadConfig` (初期状態) | 暗号化ファイルが存在しない状態で `loadConfig` を実行。 | 1. 戻り値が `true` であること（ファイルが無い場合はエラーとせずデフォルト設定を読み込む仕様）。<br>2. 設定値がデフォルト（TTS速度=1.0、音量=0.8等）にセットされること。 |
 | **UT-CFG-02** | `saveConfig` ＆ `loadConfig` | 設定データを変更して `saveConfig` し、その後再ロードする。 | 1. `MockCoreContext` に暗号化ファイルとしてバッファが書き込まれること。<br>2. 再ロード後、変更した設定（除外ユーザーリスト等）が完全に復元されること。 |
 | **UT-CFG-03** | `addExcludedUser` | 特定のユーザー `"spammer"` を除外リストに追加する。 | 1. `isExcludedUser("spammer")` が `true` を返すこと。<br>2. 大文字小文字を区別せず `"SPAMMER"` でも `true` を返すこと。 |
+| **UT-CFG-04** | `overlayTheme` | `overlayTheme` を `"custom_theme"` に変更して `saveConfig` ＆ `loadConfig` を実行。 | 1. 初期状態のデフォルト値が `"default"` であること。<br>2. 設定変更後に保存・再ロードした際、`"custom_theme"` が正しく復元されること。 |
 
 ---
 

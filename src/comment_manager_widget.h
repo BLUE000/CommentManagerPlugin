@@ -82,6 +82,7 @@ private:
 
     // 右ペイン: 設定タブ
     QWidget* m_settingsTab = nullptr;
+    QComboBox* m_comboOverlayTheme = nullptr;
     QLineEdit* m_editCommentOverlayUrl = nullptr;
     QLineEdit* m_editRankingOverlayUrl = nullptr;
     QListView* m_listExcludedUsers = nullptr;

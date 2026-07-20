@@ -282,6 +282,23 @@ void CommentManagerWidget::setupRightPane() {
     QGroupBox* obsGroup = new QGroupBox("OBS配信オーバーレイ設定", m_settingsTab);
     QFormLayout* obsForm = new QFormLayout(obsGroup);
     
+    m_comboOverlayTheme = new QComboBox(obsGroup);
+    m_comboOverlayTheme->setEditable(true); // カスタムスキン名の直接入力も可能
+    
+    // スキン（テーマ）フォルダのスキャン
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString overlayBaseDir = QDir(appDir).filePath("assets/overlay/CommentManagerPlugin");
+    QDir dir(overlayBaseDir);
+    QStringList themes;
+    if (dir.exists()) {
+        themes = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    }
+    if (!themes.contains("default")) {
+        themes.prepend("default");
+    }
+    m_comboOverlayTheme->addItems(themes);
+    obsForm->addRow("スキン（テーマ）:", m_comboOverlayTheme);
+
     m_editCommentOverlayUrl = new QLineEdit(obsGroup);
     m_editCommentOverlayUrl->setReadOnly(true);
     QPushButton* btnCopyComment = new QPushButton("コピー", obsGroup);
@@ -297,6 +314,11 @@ void CommentManagerWidget::setupRightPane() {
     rankingUrlLayout->addWidget(m_editRankingOverlayUrl);
     rankingUrlLayout->addWidget(btnCopyRanking);
     obsForm->addRow("ランキング表示URL:", rankingUrlLayout);
+
+    connect(m_comboOverlayTheme, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        m_editCommentOverlayUrl->setText(getObsOverlayUrl("comment.html"));
+        m_editRankingOverlayUrl->setText(getObsOverlayUrl("ranking.html"));
+    });
 
     connect(btnCopyComment, &QPushButton::clicked, this, &CommentManagerWidget::onCopyCommentUrl);
     connect(btnCopyRanking, &QPushButton::clicked, this, &CommentManagerWidget::onCopyRankingUrl);
@@ -671,6 +693,17 @@ void CommentManagerWidget::refreshAnalysis() {
 void CommentManagerWidget::loadSettingsToUi() {
     const PluginConfig& cfg = m_cfg->getConfig();
 
+    // オーバーレイテーマ
+    if (m_comboOverlayTheme) {
+        QString theme = cfg.overlayTheme.isEmpty() ? "default" : cfg.overlayTheme;
+        int idx = m_comboOverlayTheme->findText(theme);
+        if (idx != -1) {
+            m_comboOverlayTheme->setCurrentIndex(idx);
+        } else {
+            m_comboOverlayTheme->setCurrentText(theme);
+        }
+    }
+
     // 除外ユーザー
     m_excludedUsersModel->clear();
     for (const auto& u : cfg.excludedUsers) {
@@ -696,6 +729,13 @@ void CommentManagerWidget::loadSettingsToUi() {
 
 void CommentManagerWidget::onSaveSettings() {
     PluginConfig cfg;
+
+    if (m_comboOverlayTheme) {
+        cfg.overlayTheme = m_comboOverlayTheme->currentText().trimmed();
+        if (cfg.overlayTheme.isEmpty()) {
+            cfg.overlayTheme = "default";
+        }
+    }
     
     // UI値の読み取り
     for (int i = 0; i < m_excludedUsersModel->rowCount(); ++i) {
@@ -744,8 +784,16 @@ QString CommentManagerWidget::getObsOverlayUrl(const QString& filename) const {
             port = obj.value("obs_port").toInt(8081);
         }
     }
-    
-    return QString("http://localhost:%1/assets/overlay/CommentManagerPlugin/default/%2").arg(port).arg(filename);
+
+    QString theme = "default";
+    if (m_comboOverlayTheme && !m_comboOverlayTheme->currentText().trimmed().isEmpty()) {
+        theme = m_comboOverlayTheme->currentText().trimmed();
+    } else if (m_cfg) {
+        theme = m_cfg->getConfig().overlayTheme;
+        if (theme.isEmpty()) theme = "default";
+    }
+
+    return QString("http://localhost:%1/overlay/CommentManagerPlugin/%2/%3").arg(QString::number(port), theme, filename);
 }
 
 void CommentManagerWidget::onCopyCommentUrl() {

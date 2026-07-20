@@ -4,6 +4,7 @@
 #include "shared/plugin_interface.h"
 
 struct PluginConfig {
+    QString overlayTheme = "default"; // OBSオーバーレイテーマ（スキン）名
     QStringList excludedUsers;     // コメント表示除外ユーザー
     QStringList excludedTtsUsers;  // TTS読み上げ除外ユーザー
     int ttsSpeakerId = 1;          // 話者ID

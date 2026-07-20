@@ -113,6 +113,7 @@ classDiagram
 #### JSONデータ構造定義
 ```json
 {
+  "overlayTheme": "default",
   "excludedUsers": ["bot1", "bot2", "spammer"],
   "excludedTtsUsers": ["noisy_user"],
   "ttsConfig": {

@@ -89,6 +89,7 @@ bool ConfigManager::isExcludedTtsUser(const QString& username) const {
 
 QJsonObject ConfigManager::configToJson() const {
     QJsonObject obj;
+    obj["overlayTheme"] = m_config.overlayTheme;
 
     // 除外ユーザー
     QJsonArray exclArr;
@@ -116,6 +117,12 @@ QJsonObject ConfigManager::configToJson() const {
 }
 
 void ConfigManager::jsonToConfig(const QJsonObject& json) {
+    if (json.contains("overlayTheme") && json["overlayTheme"].isString()) {
+        m_config.overlayTheme = json["overlayTheme"].toString("default");
+    } else {
+        m_config.overlayTheme = "default";
+    }
+
     // 除外ユーザー
     m_config.excludedUsers.clear();
     if (json.contains("excludedUsers") && json["excludedUsers"].isArray()) {

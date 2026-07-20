@@ -280,6 +280,26 @@ TEST_F(CommentManagerTest, UT_CFG_03_AddExcludedUserCaseInsensitive) {
     EXPECT_TRUE(cfg.isExcludedUser("SPAMMER"));
 }
 
+TEST_F(CommentManagerTest, UT_CFG_04_OverlayThemePersistence) {
+    MockCoreContext ctx;
+    {
+        ConfigManager cfg(&ctx);
+        EXPECT_TRUE(cfg.loadConfig());
+        EXPECT_EQ(cfg.getConfig().overlayTheme, "default");
+
+        PluginConfig pcfg = cfg.getConfig();
+        pcfg.overlayTheme = "custom_skin";
+        cfg.setConfig(pcfg);
+        EXPECT_TRUE(cfg.saveConfig());
+    }
+
+    {
+        ConfigManager cfg2(&ctx);
+        EXPECT_TRUE(cfg2.loadConfig());
+        EXPECT_EQ(cfg2.getConfig().overlayTheme, "custom_skin");
+    }
+}
+
 // ========================================================
 // 2.3. CommentManagerWidget (UIロジック) の単体試験 (UT-UI)
 // ========================================================

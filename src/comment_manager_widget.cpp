@@ -106,6 +106,11 @@ void CommentManagerWidget::setupUi() {
     setupLeftPane();
     setupRightPane();
 
+    // 左右ペインの表示比率を6:4に設定
+    m_splitter->setStretchFactor(0, 6);
+    m_splitter->setStretchFactor(1, 4);
+    m_splitter->setSizes({600, 400});
+
     // 下部コントロールの初期化
     setupBottomPane();
 

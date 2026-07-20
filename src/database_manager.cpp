@@ -464,10 +464,11 @@ QMap<QString, QStringList> DatabaseManager::getCategorizedActiveUsers(int sessio
     QMap<QString, QStringList> categorized;
     QSqlQuery query(m_db);
     query.prepare(
-        "SELECT DISTINCT u.username, u.category "
+        "SELECT u.username, u.category, GROUP_CONCAT(c.badge_info, ',') AS all_badges "
         "FROM comments c "
         "JOIN users u ON c.user_id = u.user_id "
         "WHERE (:session_id <= 0 OR c.session_id = :session_id) "
+        "GROUP BY u.user_id, u.username, u.category "
         "ORDER BY u.username ASC;"
     );
     query.bindValue(":session_id", sessionId);
@@ -481,27 +482,28 @@ QMap<QString, QStringList> DatabaseManager::getCategorizedActiveUsers(int sessio
         QStringList botList;
         QStringList regularList;
 
-        // ボット判定用簡易リスト (仕様書記載の代表的なボット、実際は設定から読み取る)
-        // ここでは一般的なボット名をハードコード的にチェックするが、設定での管理外
-        QStringList botNames = {"nightbot", "frostytools", "streamelements", "moobot", "wizebot"};
-
         while (query.next()) {
             QString name = query.value(0).toString();
-            QString cat = query.value(1).toString();
+            QString userCat = query.value(1).toString().toLower();
+            QString allBadges = query.value(2).toString().toLower();
 
             allList.append(name);
-            
-            if (botNames.contains(name.toLower())) {
-                botList.append(name);
-            } else if (cat == "streamer") {
-                streamerList.append(name);
-            } else if (cat == "moderator") {
-                moderatorList.append(name);
-            } else if (cat == "vip") {
-                vipList.append(name);
-            } else if (cat == "artist") {
-                artistList.append(name);
-            } else {
+
+            // Twitchバッジ情報および登録カテゴリから全該当ロールを判定（重複所属対応）
+            bool isStreamer  = userCat == "streamer"  || allBadges.contains("broadcaster");
+            bool isModerator = userCat == "moderator" || allBadges.contains("moderator");
+            bool isVip       = userCat == "vip"       || allBadges.contains("vip");
+            bool isArtist    = userCat == "artist"    || allBadges.contains("artist");
+            bool isBot       = userCat == "bot"       || allBadges.contains("bot");
+
+            if (isStreamer)  streamerList.append(name);
+            if (isModerator) moderatorList.append(name);
+            if (isVip)       vipList.append(name);
+            if (isArtist)    artistList.append(name);
+            if (isBot)       botList.append(name);
+
+            // いずれの特別ロールにも属さない場合は一般視聴者
+            if (!isStreamer && !isModerator && !isVip && !isArtist && !isBot) {
                 regularList.append(name);
             }
         }

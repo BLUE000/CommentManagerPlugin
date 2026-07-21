@@ -112,4 +112,8 @@ private:
 
     QNetworkAccessManager* m_networkManager = nullptr;
     QMap<QUrl, QImage> m_imageCache;
+    bool m_isInitialized = false;
+
+protected:
+    virtual void showEvent(QShowEvent* event) override;
 };

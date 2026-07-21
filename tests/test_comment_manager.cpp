@@ -67,6 +67,8 @@ public:
         sentWebhookRequests.append({webhookUrl, payload});
     }
 
+    virtual QList<TwitchRewardInfo> getChannelPointRewards() override { return {}; }
+
     virtual QString getPluginDirectory() const override { return mockPluginDir; }
     virtual QString getCipherKey() const override { return mockCipherKey; }
 

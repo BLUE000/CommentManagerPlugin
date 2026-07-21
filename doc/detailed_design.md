@@ -476,3 +476,19 @@ void CommentManagerPlugin::initialize(ICoreContext* context) {
 }
 ```
 
+### 5.4. `CommentManagerWidget` の遅延初期化実装詳細
+- ウィジェット生成時（`createWidget`）の段階では、シグナルバインドやデータ読み込み（`updateActiveViewers()`、`refreshAnalysis()`）を抑止します。
+- `QShowEvent` ハンドラを実装し、初回描画時にのみ DB からのデータロードを実行します。
+
+```cpp
+void CommentManagerWidget::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    if (!m_initialized) {
+        m_initialized = true;
+        updateActiveViewers();
+        refreshAnalysis();
+    }
+}
+```
+
+

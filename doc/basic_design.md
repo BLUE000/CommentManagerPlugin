@@ -403,4 +403,9 @@ sequenceDiagram
 - `initialize(ICoreContext* context)` 実行時、データベース接続や設定読み込みの処理を `try-catch` ブロックで保護します。
 - 初期化中に異常が発生した場合でもホストアプリのイベントループを停止させず、エラーログを出力して安全に制御を返却します。
 
+### 6.4. UIウィジェットの遅延初期化 (Lazy Initialization)
+- `createWidget(parent)` 呼び出し時（特に非表示の初期化段階 `parent = nullptr`）に、データベースクエリを伴う重い解析処理（`refreshAnalysis`）や集計（`updateActiveViewers`）を即時実行せず、レイアウト構築のみに留めます。
+- ウィジェットが実際にユーザーの画面に表示されたタイミング（`showEvent`）で初回データロードを遅延実行することで、ホストアプリ起動時およびプラグイン一覧スキャン時のメインスレッドのブロッキング・フリーズを回避します。
+
+
 ```
